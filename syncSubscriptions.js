@@ -138,9 +138,7 @@ async function syncSubscription(dbRecord) {
         .eq("stripe_subscription_id", dbRecord.stripe_subscription_id);
 
       if (error) throw error;
-      console.log(
-        `❌ Marked ${dbRecord.stripe_subscription_id} as canceled (deleted in Stripe)`,
-      );
+     
       return { status: "deleted", changes: true };
     }
 
@@ -173,20 +171,11 @@ async function syncSubscription(dbRecord) {
         await addCreditsRecord(dbRecord, mappedData);
       }
 
-      console.log(
-        `🔄 Updated subscription ${dbRecord.stripe_subscription_id}:`,
-        {
-          status: `${dbRecord.status} → ${mappedData.status}`,
-          plan_id: `${dbRecord.plan_id} → ${mappedData.plan_id}`,
-          period_end: `${dbRecord.current_period_end} → ${mappedData.current_period_end}`,
-        },
-      );
+    
       return { status: "updated", changes: true };
     }
 
-    console.log(
-      `✅ Subscription ${dbRecord.stripe_subscription_id} up to date`,
-    );
+   
     return { status: "no_change", changes: false };
   } catch (error) {
     console.error(
@@ -221,7 +210,6 @@ async function syncAllSubscriptions() {
       .not("stripe_subscription_id", "is", null);
 
     console.log("Error:", error);
-    console.log("Data:", subscriptions);
     // return;
 
     if (error) throw error;
