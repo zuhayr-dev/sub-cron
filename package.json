@@ -1,0 +1,13 @@
+{
+    "name": "stripe-subscription-cron",
+
+    "type": "module",
+    "scripts": {
+        "start": "node syncSubscriptions.js"
+      },
+    "dependencies": {
+      "@supabase/supabase-js": "^2.58.0",
+      "stripe": "^19.1.0"
+    }
+  }
+  
