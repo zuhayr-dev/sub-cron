@@ -2,14 +2,13 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-06-20",
-  });
-  
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-  
+  apiVersion: "2024-06-20",
+});
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
 
 const PLANS = [
   { id: "price_1S2vqlH3uTn0vrRgS9qmraPP", name: "STARTER", credits: 100 },
@@ -33,6 +32,52 @@ async function getStripeSubscription(subscriptionId) {
     throw error;
   }
 }
+
+const totalUserCredits = async (userId) => {
+  const { data, error } = await supabase
+    .from("credits")
+    .select("amount.sum()")
+    .eq("user_id", userId)
+    .single();
+
+  if (error) {
+    console.error(error);
+    return 0;
+  }
+
+  return data?.sum ?? 0;
+};
+
+const clearUserCredits = async (userId) => {
+  const total = await totalUserCredits(userId);
+  if (total === 0) {
+    return;
+  }
+
+  const creditsRecord = {
+    user_id: userId,
+    amount: -total,
+    source: "unused_credits_cleared",
+    notes: `Credits not carry forward (-${total})`,
+    created_at: new Date().toISOString().replace("T", " ").replace("Z", "+00"),
+    updated_at: new Date().toISOString().replace("T", " ").replace("Z", "+00"),
+    idempotency_key: null,
+    video_id: null,
+    showOnSite: false,
+    video_type: "",
+  };
+
+  const { error } = await supabase.from("credits").insert(creditsRecord);
+
+  if (error) {
+    console.error(error);
+    return false;
+  }
+
+  console.log(`💰 Cleared ${total} credits for user ${userId}`);
+
+  return true;
+};
 
 /**
  * Map Stripe subscription data to database schema
@@ -97,7 +142,7 @@ async function addCreditsRecord(dbRecord, mappedData) {
       idempotency_key: null,
       video_id: null,
       showOnSite: false,
-      video_type: "ugc-ads",
+      video_type: "",
     };
 
     const { error } = await supabase.from("credits").insert(creditsRecord);
@@ -138,7 +183,7 @@ async function syncSubscription(dbRecord) {
         .eq("stripe_subscription_id", dbRecord.stripe_subscription_id);
 
       if (error) throw error;
-     
+
       return { status: "deleted", changes: true };
     }
 
@@ -167,15 +212,16 @@ async function syncSubscription(dbRecord) {
       if (error) throw error;
 
       // Add credits record if end date has changed (subscription renewed)
-      if (endDateChanged && mappedData.status === "active") {
-        await addCreditsRecord(dbRecord, mappedData);
+      if (endDateChanged) {
+        await clearUserCredits(dbRecord.user_id);
+        if (mappedData.status === "active") {
+          await addCreditsRecord(dbRecord, mappedData);
+        }
       }
 
-    
       return { status: "updated", changes: true };
     }
 
-   
     return { status: "no_change", changes: false };
   } catch (error) {
     console.error(
