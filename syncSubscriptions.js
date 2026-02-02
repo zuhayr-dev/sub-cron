@@ -7,7 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const PLANS = [
@@ -36,16 +36,18 @@ async function getStripeSubscription(subscriptionId) {
 const totalUserCredits = async (userId) => {
   const { data, error } = await supabase
     .from("credits")
-    .select("amount.sum()")
-    .eq("user_id", userId)
-    .single();
+    .select("amount")
+    .eq("user_id", userId);
 
   if (error) {
     console.error(error);
     return 0;
   }
 
-  return data?.sum ?? 0;
+  // Sum all credit amounts in JavaScript
+  const total =
+    data?.reduce((sum, record) => sum + (record.amount || 0), 0) ?? 0;
+  return total;
 };
 
 const clearUserCredits = async (userId) => {
@@ -150,12 +152,12 @@ async function addCreditsRecord(dbRecord, mappedData) {
     if (error) throw error;
 
     console.log(
-      `💰 Added ${plan.credits} credits for user ${dbRecord.user_id} (${mappedData.plan_id})`,
+      `💰 Added ${plan.credits} credits for user ${dbRecord.user_id} (${mappedData.plan_id})`
     );
   } catch (error) {
     console.error(
       `❌ Error adding credits record for subscription ${dbRecord.stripe_subscription_id}:`,
-      error.message,
+      error.message
     );
   }
 }
@@ -166,7 +168,7 @@ async function addCreditsRecord(dbRecord, mappedData) {
 async function syncSubscription(dbRecord) {
   try {
     const stripeSubscription = await getStripeSubscription(
-      dbRecord.stripe_subscription_id,
+      dbRecord.stripe_subscription_id
     );
 
     if (!stripeSubscription) {
@@ -226,7 +228,7 @@ async function syncSubscription(dbRecord) {
   } catch (error) {
     console.error(
       `❌ Error syncing subscription ${dbRecord.stripe_subscription_id}:`,
-      error.message,
+      error.message
     );
     return { status: "error", error: error.message };
   }
