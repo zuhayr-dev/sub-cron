@@ -12,6 +12,7 @@ const supabase = createClient(
 
 const PLANS = [
   { id: "price_1S2vqlH3uTn0vrRgS9qmraPP", name: "STARTER", credits: 100 },
+  { id: "price_1T87ZJH3uTn0vrRgvjgQtLKH", name: "STARTER", credits: 100 },
   { id: "price_1S2vroH3uTn0vrRgZVRzLkNr", name: "PRO", credits: 350 },
   { id: "price_1S2vsGH3uTn0vrRgzvgc2P9Q", name: "AGENCY", credits: 1000 },
 ];
